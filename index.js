@@ -15,7 +15,7 @@ function extractExports(source) {
     AssignmentExpression(node) {
       const isValuesExport =
         node.left.type === 'MemberExpression' &&
-        node.left.object.name === 'exports' &&
+        node.left.object.name === '___CSS_LOADER_EXPORT___' &&
         node.left.property.name === 'locals';
 
       if (isValuesExport && node.right.type === 'ObjectExpression') {
@@ -56,14 +56,27 @@ module.exports = function loader(source, map) {
 
   const exportedValues = extractExports(source);
   const hasExports = Object.keys(exportedValues).length;
-  const definitionSource = hasExports
-    ? `${Object.keys(exportedValues)
-        .map(val => `export const ${val}: string;`)
-        .join(os.EOL)}${os.EOL}`
-    : // TS will treat this as a module when imported as * and no exported values exist
-      `declare let emptyCSSModule: void;${
-        os.EOL
-      }export default emptyCSSModule;${os.EOL}`;
+  let definitionSource;
+  if ( hasExports > 0 )
+  {
+    let exportedValuesText = `${Object.keys(exportedValues)
+      .map(val => `    ${val}: string;`)
+      .join(os.EOL)}${os.EOL}`;
+    definitionSource = `interface Style${os.EOL}`;
+    definitionSource += `{${os.EOL}`;
+    definitionSource += exportedValuesText;
+    definitionSource += `}${os.EOL}`;
+    definitionSource += `declare const esModuleStyle: Style;${os.EOL}`;
+    definitionSource += `export default esModuleStyle;${os.EOL}`;
+  }
+  else
+  {
+    // TS will treat this as a module when imported as * and no exported values exist
+    definitionSource = `declare let emptyCSSModule: void;${
+      os.EOL
+    }export default emptyCSSModule;${os.EOL}`;
+  }
+
 
   fs.stat(definitionPath, (err, stats) => {
     if (err && err.code !== 'ENOENT') {
